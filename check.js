@@ -1,0 +1,1 @@
+console.log(require('fs').readFileSync('src/index.js','utf8').substring(require('fs').readFileSync('src/index.js','utf8').indexOf('if (content.startsWith(\'ask doubt\'))'), require('fs').readFileSync('src/index.js','utf8').indexOf('if (content.startsWith(\'!review\'))')))
