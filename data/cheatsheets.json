@@ -1,0 +1,22 @@
+{
+  "os": {
+    "title": "🖥️ Operating Systems Cheat Sheet",
+    "description": "**Key Topics & Formulas for OS:**\n\n**1. Process Management:**\n- **Turnaround Time (TAT)** = Completion Time - Arrival Time\n- **Waiting Time (WT)** = TAT - Burst Time\n- **Scheduling Algos**: FCFS, SJF, Round Robin, SRTF.\n\n**2. Memory Management:**\n- **Paging vs Segmentation**: Paging solves external fragmentation, Segmentation reflects logical structure.\n- **Page Fault**: When a page is not in main memory.\n- **Effective Access Time** = (p * Page Fault Time) + (1-p) * Memory Access Time\n\n**3. Deadlocks:**\n- **Coffman Conditions**: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.\n- **Banker's Algorithm**: Used for deadlock avoidance.",
+    "color": 16711680
+  },
+  "dsa": {
+    "title": "🌳 Data Structures & Algorithms Cheat Sheet",
+    "description": "**Quick DSA Revision:**\n\n**1. Time Complexities:**\n- **Binary Search**: O(log n)\n- **Merge/Quick Sort**: O(n log n)\n- **Bubble/Insertion Sort**: O(n^2) worst case, O(n log n) avg\n\n**2. Important Data Structures:**\n- **Hash Map**: O(1) lookups/inserts.\n- **Heap (Priority Queue)**: Easy min/max access in O(log n).\n- **Graph**: BFS (Queue), DFS (Stack/Recursion). \n- **Tree**: A connected acyclic graph.\n\n**3. Common Patterns:**\n- **Sliding Window**: For contiguous subarrays.\n- **Two Pointers**: For sorted arrays or linked lists.\n- **Fast & Slow Pointers**: Cycle detection (Floyd's).",
+    "color": 65280
+  },
+  "dbms": {
+    "title": "🗄️ DBMS & SQL Cheat Sheet",
+    "description": "**Database Management Concepts:**\n\n**1. ACID Properties:**\n- Atomicity, Consistency, Isolation, Durability\n\n**2. Normalization:**\n- **1NF**: No multi-valued attributes.\n- **2NF**: 1NF + No partial dependency.\n- **3NF**: 2NF + No transitive dependency.\n- **BCNF**: Stricter 3NF, X -> Y, X must be a superkey.\n\n**3. SQL Commands:**\n- **DDL**: CREATE, ALTER, DROP, TRUNCATE\n- **DML**: INSERT, UPDATE, DELETE\n- **DQL**: SELECT\n- **DCL**: GRANT, REVOKE\n\n**4. Indexing:** B-Trees for fast retrieval.",
+    "color": 3447003
+  },
+  "cp": {
+    "title": "🚀 Competitive Programming Cheat Sheet",
+    "description": "**CP Formulas & Tricks:**\n\n**1. Number Theory:**\n- GCD(a, b) = GCD(b, a % b) [Euclidean algorithm]\n- LCM(a, b) = (a * b) / GCD(a, b)\n- Sieve of Eratosthenes for prime generation in O(N log log N)\n\n**2. Combinatorics:**\n- nCr = n! / (r! * (n-r)!)\n- a^b mod m using Modular Exponentiation in O(log b)\n\n**3. Bit Manipulation:**\n- Check if `x` is power of 2: `(x & (x - 1)) == 0`\n- Multiply/Divide by 2: `x << 1` / `x >> 1`\n\n**4. Standard Algos:**\n- Dijkstra's (Shortest Path)\n- Kruskal's/Prim's (MST)\n- KMP (String matching)",
+    "color": 16753920
+  }
+}
