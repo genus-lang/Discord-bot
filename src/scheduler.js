@@ -75,9 +75,6 @@ async function buildInterviewPayload() {
         .setTitle(`${titlePrefix}`)
         .setDescription(`**${q.question}**`)
         .addFields(
-            { name: '🏷️ Category', value: q.category, inline: true },
-            { name: '📊 Difficulty', value: q.difficulty, inline: true },
-            { name: '🔍 Source', value: q.type || "Unknown", inline: true },
             { name: '✅ Answer', value: q.advice.substring(0, 1024) },
         )
         .setFooter({ text: 'Test your knowledge!' })
