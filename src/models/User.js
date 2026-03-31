@@ -11,7 +11,8 @@ const userSchema = new mongoose.Schema({
         CP: { type: Number, default: 0 },
         General: { type: Number, default: 0 }
     },
-    battleWins: { type: Number, default: 0 }
+    battleWins: { type: Number, default: 0 },
+    claimedQuestions: { type: [String], default: [] } // Tracks message IDs to prevent double XP
 });
 
 module.exports = mongoose.model('User', userSchema);

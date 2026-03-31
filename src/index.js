@@ -780,12 +780,23 @@ client.on('interactionCreate', async (interaction) => {
           user = new User({ discordId: interaction.user.id, username: interaction.user.username });
       }
 
+      // Check if user already claimed XP for this specific message
+      const messageId = interaction.message.id;
+      if (user.claimedQuestions && user.claimedQuestions.includes(messageId)) {
+          return interaction.editReply(`⚠️ You already claimed XP for this question! Keep going and wait for the next one.`);
+      }
+
       // Increment specific topic mastery
       if (user.mastery[topic] !== undefined) {
           user.mastery[topic] += 1;
       } else {
           user.mastery.General += 1;
       }
+      
+      // Save message ID to prevent duplicate XP
+      if (!user.claimedQuestions) user.claimedQuestions = [];
+      user.claimedQuestions.push(messageId);
+      
       await user.save();
         try { await checkAndAssignRoles(interaction.member, user); } catch (e) {}
 
