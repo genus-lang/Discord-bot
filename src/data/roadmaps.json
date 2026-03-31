@@ -1,0 +1,17 @@
+{
+  "frontend": {
+    "title": "🌐 Frontend Developer Roadmap",
+    "description": "Step-by-step guide to becoming a Frontend Developer:\n\n**Step 1: The Basics**\n- HTML5 (Semantic HTML, Accessibility)\n- CSS3 (Flexbox, Grid, Responsive Design)\n- JavaScript (ES6+, DOM Manipulation, Fetch API/AJAX)\n\n**Step 2: Build Tools & Git**\n- Version Control (Git, GitHub)\n- Package Managers (npm, yarn)\n- Bundlers (Vite, Webpack)\n\n**Step 3: Frameworks/Libraries**\n- React.js (Hooks, Context, State Management like Redux/Zustand)\n- Next.js (SSR, SSG, Routing)\n\n**Step 4: Styling & UI**\n- Tailwind CSS\n- Material UI or Chakra UI\n\n**Step 5: Advanced Topics**\n- TypeScript\n- Testing (Jest, Cypress, React Testing Library)\n- Performance Optimization (Lighthouse, Lazy Loading)",
+    "color": 3447003
+  },
+  "backend": {
+    "title": "⚙️ Backend Developer Roadmap",
+    "description": "Step-by-step guide to becoming a Backend Developer:\n\n**Step 1: Core Fundamentals**\n- Choose a Language (Node.js/Python/Java/Go)\n- Learn APIs (REST, GraphQL, gRPC)\n- HTTP Basics & Networking\n\n**Step 2: Database Management**\n- Relational: PostgreSQL, MySQL\n- NoSQL: MongoDB, Redis\n- ORMs/ODMs (Mongoose, Prisma, Sequelize) \n\n**Step 3: Server & Frameworks**\n- Express.js or NestJS (for Node)\n- Django or FastAPI (for Python)\n- Spring Boot (for Java)\n\n**Step 4: Advanced Concepts**\n- Authentication (JWT, OAuth, Sessions)\n- Caching (Redis)\n- Message Brokers (RabbitMQ, Kafka)\n- Microservices Architecture\n\n**Step 5: Deployment & DevOps**\n- Docker & Containers\n- CI/CD Pipelines (GitHub Actions)\n- Cloud Providers (AWS, GCP)",
+    "color": 3066993
+  },
+  "dsa": {
+    "title": "🧠 DSA & Interview Prep Roadmap",
+    "description": "Step-by-step guide for cracking technical interviews:\n\n**Phase 1: Basic Foundations**\n- Time & Space Complexity (Big O Notation)\n- Arrays & Strings (Two pointers, Sliding Window)\n- Hashing (HashMap, HashSet)\n\n**Phase 2: Linear Data Structures**\n- Linked Lists (Reversal, Cycle Detection)\n- Stacks & Queues (Monotonic stack)\n\n**Phase 3: Trees & Graphs**\n- Binary Trees (DFS, BFS, Traversals)\n- Binary Search Trees (BST)\n- Graph Traversal (DFS, BFS, Topological Sort)\n\n**Phase 4: Advanced Algorithms**\n- Dynamic Programming (Memoization, Tabulation)\n- Greedy Algorithms\n- Backtracking\n- Tries & Union Find\n\n**Phase 5: Mock Interviews & CP**\n- Leetcode Top 150 / Blind 75\n- Participate in Codeforces/Codechef div 2/3/4\n- System Design Basics (for SDE-2+ roles)",
+    "color": 15158332
+  }
+}
