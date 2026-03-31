@@ -16,6 +16,7 @@ const { startContestTracker } = require('./contests');
 const stringSimilarity = require('string-similarity');
 const User = require('./models/User');
 const Doubt = require('./models/Doubt');
+const BattleSession = require('./models/BattleSession');
 
 // Level / Badges System
 const ROLES = {
@@ -430,6 +431,9 @@ if (content === 'cheatsheet') {
 
     try { await message.delete(); } catch(e) {}
 
+    // 1. Kick off the AI generation asynchronously
+    const questionsPromise = getGeminiBattleQuestions();
+
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('join_battle').setLabel('Join Battle').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('start_battle').setLabel('Start Now').setStyle(ButtonStyle.Primary)
@@ -438,7 +442,7 @@ if (content === 'cheatsheet') {
     const lobbyEmbed = new EmbedBuilder()
         .setColor(0xF1C40F)
         .setTitle('⚔️ BATTLE LOBBY')
-        .setDescription('A **20-question** trivia battle is starting!\n\nClick **Join Battle** to participate.\n*Need at least 2 players to begin.*\n\nLobby closes in 30 seconds...');
+        .setDescription('Generating **20 AI-powered MCQ questions**!\n\nClick **Join Battle** to participate.\n*Need at least 2 players to begin.*\n\nLobby closes in 30 seconds...');
 
     const lobbyMsg = await message.channel.send({ embeds: [lobbyEmbed], components: [row] });
     const players = new Map();
@@ -449,23 +453,42 @@ if (content === 'cheatsheet') {
     const battleLoop = async () => {
         if (players.size < 2) return message.channel.send("⏱ Not enough players joined. Minimum 2 players required. Battle cancelled.");
         
-        await message.channel.send(`🚀 **Battle starting with ${players.size} players!** 20 questions, first to answer gets a point.`);
+        const loadingMsg = await message.channel.send("⏳ Fetching 20 AI-generated questions from the database... If AI is still thinking, this will take just a few seconds.");
+        
+        // 2. Await the previously started fetch
+        const questions = await questionsPromise;
+        if (!questions || questions.length === 0) {
+            return loadingMsg.edit("❌ Failed to generate AI questions! Please try again later.");
+        }
+
+        // 3. Temporarily store the questions in the database
+        const battleSession = new BattleSession({
+            channelId: message.channel.id,
+            questions: questions
+        });
+        await battleSession.save();
+
+        await loadingMsg.edit(`🚀 **Battle starting with ${players.size} players!** 20 questions coming from the database. Reply with the EXACT answer text or the option number.`);
+        
         const scores = {};
         players.forEach((name, id) => scores[id] = 0);
-        const TOTAL_QUESTIONS = 20;
+        const TOTAL_QUESTIONS = questions.length;
 
-        for (let i = 1; i <= TOTAL_QUESTIONS; i++) {
+        for (let i = 0; i < TOTAL_QUESTIONS; i++) {
             if (isBattleStopped) break; 
             await new Promise(r => setTimeout(r, 3000)); 
             if (isBattleStopped) break; 
 
-            const q = await getInterviewQuestion();
-            if (!q) { await message.channel.send("Failed to fetch a question, skipping..."); continue; }
+            // Get the current question from the database session memory
+            const q = questions[i];
+            
+            // Format options
+            let optionsText = q.options.map((opt, idx) => `**${idx + 1}.** ${opt}`).join('\n');
 
             const qEmbed = new EmbedBuilder()
                 .setColor(0xFF0000)
-                .setTitle(`⚔️ BATTLE: Question ${i} / ${TOTAL_QUESTIONS}`)
-                .setDescription(`**${q.question}**\n\nType your answer in the chat! You have **20 seconds**.`)
+                .setTitle(`⚔️ BATTLE: Question ${i + 1} / ${TOTAL_QUESTIONS}`)
+                .setDescription(`**${q.question}**\n\n${optionsText}\n\nType the correct option number or the exact text! You have **20 seconds**.`)
                 .addFields({ name: 'Category', value: q.category || 'General', inline: true })
                 .setFooter({ text: 'Quick, time is ticking!' });
 
@@ -499,8 +522,8 @@ if (content === 'cheatsheet') {
                     const correctA = q.exactAnswer ? q.exactAnswer.toLowerCase().trim() : null;
                     if (correctA) {
                         if (userA === correctA) isCorrect = true;
-                        else if (q.optionsList && q.optionsList.length > 0) { 
-                            const idx = q.optionsList.findIndex(opt => opt.toLowerCase().trim() === correctA);
+                        else if (q.options && q.options.length > 0) { 
+                            const idx = q.options.findIndex(opt => opt.toLowerCase().trim() === correctA);
                             if (idx !== -1 && userA === (idx + 1).toString()) isCorrect = true;
                         }
                         if (isCorrect) { questionWinner = m; qCollector.stop('winner'); }
@@ -514,9 +537,9 @@ if (content === 'cheatsheet') {
                     if (reason === 'winner' && questionWinner) {
                         const winnerId = questionWinner.author.id;
                         scores[winnerId] += 1;
-                        await message.channel.send(`✅ **${questionWinner.author.username}** got it! (+1 pt)\nCorrect answer was: **${q.exactAnswer}**`); 
+                        await message.channel.send(`✅ **${questionWinner.author.username}** got it! (+1 pt)\nCorrect answer was: **${q.exactAnswer}**\n*Explanation: ${q.explanation}*`); 
                     } else {
-                        await message.channel.send(`⏰ Time's up! Nobody got it.\nCorrect answer was: **${q.exactAnswer || "Unknown"}**`);
+                        await message.channel.send(`⏰ Time's up! Nobody got it.\nCorrect answer was: **${q.exactAnswer || "Unknown"}**\n*Explanation: ${q.explanation}*`);
                     }
                     resolve();
                 });
