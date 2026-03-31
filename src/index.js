@@ -1,5 +1,12 @@
 require('dotenv').config();
 
+// Add a simple Express server to satisfy Render Web Service port binding
+const express = require('express');
+const app = express();
+app.get('/', (req, res) => res.send('Bot is running!'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Dummy server listening on port ${PORT}`));
+
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');      
 const { startScheduler, sendCodingQuestion, sendInterviewQuestion, buildCodingPayload, buildInterviewPayload } = require('./scheduler');
 const { getInterviewQuestion } = require('./questions/interview');
