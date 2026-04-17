@@ -1,11 +1,13 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { askAI } = require("./fallbackAI");
+const AIQuestion = require('../models/AIQuestion');
 require('dotenv').config();
 
 async function getGeminiBattleQuestions() {
     try {
+        const batchSize = parseInt(process.env.AI_BATCH_SIZE) || 20;
         const prompt = `
-Generate a strict JSON array containing exactly 20 advanced multiple choice questions.
+Generate a strict JSON array containing exactly ${batchSize} advanced multiple choice questions.
 The questions must be strictly from these topics: System Design, Development, Competitive Programming (CP), Data Structures and Algorithms (DSA), DBMS, Operating Systems (OS), Artificial Intelligence (AI), Machine Learning (ML), Deep Learning (DL), OOPS, Data Mining, Data Science.
 
 Make the options concise but factual.
@@ -32,10 +34,33 @@ CRITICAL RULES:
         return Array.isArray(parsed) ? parsed : null;
     } catch (error) {
         console.error("AI API Error:", error.message);
+        return [];
     }
 }
 
-module.exports = { getGeminiBattleQuestions };
+async function getAndStoreAIQuestions() {
+    try {
+        console.log("Generating and storing new batch of AI questions...");
+        const questions = await getGeminiBattleQuestions();
+        if (!questions || !Array.isArray(questions) || questions.length === 0) return [];
+
+        const storedQuestions = await AIQuestion.insertMany(
+            questions.map(q => ({
+                question: q.question,
+                options: q.options,
+                correctAnswer: q.exactAnswer,
+                explanation: q.explanation,
+                category: q.category
+            }))
+        );
+
+        console.log(`✅ Successfully stored ${storedQuestions.length} new AI questions.`);
+        return storedQuestions;
+    } catch (error) {
+        console.error("Failed to store AI questions:", error.message);
+        return [];
+    }
+}
 
 async function getGeminiCheatsheet(topic) {
     try {
@@ -68,4 +93,4 @@ async function reviewUserCode(userCode) {
     }
 }
 
-module.exports = { getGeminiBattleQuestions, getGeminiCheatsheet, analyzeResumeForInterview, reviewUserCode };
+module.exports = { getGeminiBattleQuestions, getAndStoreAIQuestions, getGeminiCheatsheet, analyzeResumeForInterview, reviewUserCode };

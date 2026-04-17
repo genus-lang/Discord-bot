@@ -10,13 +10,15 @@ app.listen(PORT, () => console.log(`Dummy server listening on port ${PORT}`));
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');      
 const { startScheduler, sendCodingQuestion, sendInterviewQuestion, buildCodingPayload, buildInterviewPayload } = require('./scheduler');
 const { getInterviewQuestion } = require('./questions/interview');
-const { getGeminiBattleQuestions, getGeminiCheatsheet, analyzeResumeForInterview, reviewUserCode } = require('./questions/gemini');
+const { getGeminiBattleQuestions, getAndStoreAIQuestions, getGeminiCheatsheet, analyzeResumeForInterview, reviewUserCode } = require('./questions/gemini');
 const { connectDB } = require('./database');
 const { startContestTracker } = require('./contests');
 const stringSimilarity = require('string-similarity');
 const User = require('./models/User');
 const Doubt = require('./models/Doubt');
 const BattleSession = require('./models/BattleSession');
+const AIQuestion = require('./models/AIQuestion');
+const { initPowerSaver, resetActivityTimer } = require('./utils/powerSaver');
 
 // Level / Badges System
 const ROLES = {
@@ -84,6 +86,7 @@ client.on('ready', async () => {
 
   startScheduler(client);
   startContestTracker(client);
+  initPowerSaver(client);
 });
 
 // Welcome new users with features & commands
@@ -97,7 +100,7 @@ client.on('guildMemberAdd', async (member) => {
         { name: '🔥 Coding & Interview (Any Channel)', value: `• \`coding\` : Get a coding / DSA challenge\n• \`interview\` : Get a core CS conceptual question\n• \`stats\` : See your RPG-style mastery progression` },
         { name: '💻 General Channel (<#' + process.env.GENERAL_CHANNEL_ID + '>)', value: `• \`resume <your resume text>\` : Get custom interview questions based on your resume\n• \`review <paste code>\` : Have a Senior AI Engineer review your codebase for bugs & optimization` },
         { name: '🗺️ Roadmap Channel (<#' + process.env.ROADMAP_CHANNEL_ID + '>)', value: `• \`roadmap\` : Select a role (Frontend/Backend/DSA) for an interactive learning map\n• \`cheatsheet\` : Select a CS subject (OS, DBMS, SQL, etc.) from the menu to generate a study guide` },
-        { name: '⚔️ Battle Mode (<#' + process.env.BATTLE_MODE_ID + '>)', value: `• \`battle\` : Start an intense live multiplayer CS trivia shootout!` },
+        { name: '⚔️ Battle Mode (<#' + process.env.BATTLE_MODE_ID + '>)', value: `• \`battle\` : Enter the Arena! Choose **Multiplayer Battle** to race others, or **Solo Practice** to play unique AI questions stored just for you.` },
         { name: '📚 Doubt Notebook (<#' + process.env.DOUBT_CHANNEL_ID + '>)', value: `• \`ask doubt <your question>\` : Post a question and auto-create a discussion thread\n• \`doubts\` : View open doubts that need answering` }
       )
       .setThumbnail(member.guild.iconURL({ dynamic: true }))
@@ -127,12 +130,13 @@ const featureToggles = { coding: true, interview: true, stats: true, doubts: tru
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
+  resetActivityTimer();
 
   const content = message.content.toLowerCase().trim();
 
   // Admin commands:
   if (content === 'service') {
-    const adminChannelId = process.env.ADMIN_CHANNEL_ID || '1488553134463914147';
+    const adminChannelId = process.env.ADMIN_CHANNEL_ID;
     if (message.channel.id !== adminChannelId) return;
 
     const embed = new EmbedBuilder()
@@ -326,7 +330,8 @@ client.on('messageCreate', async (message) => {
     }
     const currentDate = new Date().toDateString();
     if (currentDate !== aiDate) { dailyReviewCount = 0; dailyResumeCount = 0; aiDate = currentDate; }
-    if (dailyReviewCount >= 5) return message.reply('⏸️ You have reached the maximum of 5 Code Reviews for today. Please wait until tomorrow!');
+    const reviewLimit = parseInt(process.env.DAILY_REVIEW_LIMIT) || 5;
+    if (dailyReviewCount >= reviewLimit) return message.reply(`⏸️ You have reached the maximum of ${reviewLimit} Code Reviews for today. Please wait until tomorrow!`);
     
     const codeToReview = message.content.slice('review '.length).trim();
     if (!codeToReview) return message.reply('Please provide the code you want reviewed.');
@@ -344,7 +349,8 @@ client.on('messageCreate', async (message) => {
     }
     const currentDate = new Date().toDateString();
     if (currentDate !== aiDate) { dailyReviewCount = 0; dailyResumeCount = 0; aiDate = currentDate; }
-    if (dailyResumeCount >= 5) return message.reply('⏸️ You have reached the maximum of 5 Resume Reviews for today. Please wait until tomorrow!');
+    const resumeLimit = parseInt(process.env.DAILY_RESUME_LIMIT) || 5;
+    if (dailyResumeCount >= resumeLimit) return message.reply(`⏸️ You have reached the maximum of ${resumeLimit} Resume Reviews for today. Please wait until tomorrow!`);
     
     const resumeText = message.content.slice('resume '.length).trim();
     if (!resumeText) return message.reply('Please paste the plaintext of your resume.');
@@ -435,14 +441,18 @@ if (content === 'cheatsheet') {
     const questionsPromise = getGeminiBattleQuestions();
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('join_battle').setLabel('Join Battle').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('start_battle').setLabel('Start Now').setStyle(ButtonStyle.Primary)
+        new ButtonBuilder().setCustomId('join_battle').setLabel('Join Multi-Battle').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('solo_battle').setLabel('Solo Practice').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('start_battle').setLabel('Force Start').setStyle(ButtonStyle.Primary)
     );
 
     const lobbyEmbed = new EmbedBuilder()
         .setColor(0xF1C40F)
-        .setTitle('⚔️ BATTLE LOBBY')
-        .setDescription('Generating **20 AI-powered MCQ questions**!\n\nClick **Join Battle** to participate.\n*Need at least 2 players to begin.*\n\nLobby closes in 30 seconds...');
+        .setTitle('⚔️ BATTLE CENTER')
+        .setDescription('Choose your mode:\n\n' +
+            '🚀 **Multiplayer Battle**: Race against others! Need at least 2 players.\n' +
+            '🎯 **Solo Practice**: Get a personalized, persistent question from the AI pool.\n\n' +
+            '*Generating 20 AI questions in the background...*');
 
     const lobbyMsg = await message.channel.send({ embeds: [lobbyEmbed], components: [row] });
     const players = new Map();
@@ -564,9 +574,10 @@ if (content === 'cheatsheet') {
             let user = await User.findOne({ discordId: winnerId });
             if (!user) user = new User({ discordId: winnerId, username: players.get(winnerId) });
             user.battleWins = (user.battleWins || 0) + 1;
-            user.mastery.General += 15; 
+            const battleWinXP = parseInt(process.env.BATTLE_WIN_XP) || 15;
+            user.mastery.General += battleWinXP; 
             await user.save();
-            finalEmbed.addFields({ name: 'Rewards', value: `**${players.get(winnerId)}** receives +15 General XP and +1 Battle Win!` });
+            finalEmbed.addFields({ name: 'Rewards', value: `**${players.get(winnerId)}** receives +${battleWinXP} General XP and +1 Battle Win!` });
         } else {
             finalEmbed.addFields({ name: 'Rewards', value: "Nobody scored any points! No rewards given." });
         }
@@ -621,6 +632,7 @@ if (content === 'cheatsheet') {
 
 // Interactions (Buttons & Modals)
 client.on('interactionCreate', async (interaction) => {
+  resetActivityTimer();
   try {
     if (interaction.isModalSubmit()) {
       if (interaction.customId.startsWith('submitans_')) {
@@ -678,11 +690,56 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
+    if (interaction.isButton() && interaction.customId === 'solo_battle') {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            let user = await User.findOne({ discordId: interaction.user.id });
+            if (!user) user = new User({ discordId: interaction.user.id, username: interaction.user.username });
+
+            // Find an unviewed question
+            let q = await AIQuestion.findOne({ _id: { $nin: user.seenAIQuestions || [] } });
+
+            // If none found, generate more
+            if (!q) {
+                await interaction.editReply("✨ You've seen all current questions! Generating new ones from AI, please wait a moment...");
+                const newQs = await getAndStoreAIQuestions();
+                if (newQs.length > 0) {
+                    q = newQs[0];
+                } else {
+                    return interaction.editReply("❌ Failed to generate new questions. Please try again later.");
+                }
+            }
+
+            // Display question
+            const embed = new EmbedBuilder()
+                .setColor(0x3498DB)
+                .setTitle(`🎯 Solo Battle: ${q.category || 'General'}`)
+                .setDescription(`**${q.question}**`)
+                .setFooter({ text: 'Choose the correct option below for +5 XP!' });
+
+            const row = new ActionRowBuilder();
+            q.options.forEach((opt, idx) => {
+                row.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`aiq_opt_${q._id}_${idx}`)
+                        .setLabel(opt.substring(0, 80)) // Discord button label limit
+                        .setStyle(ButtonStyle.Primary)
+                );
+            });
+
+            return interaction.editReply({ embeds: [embed], components: [row] });
+        } catch (e) {
+            console.error(e);
+            return interaction.editReply("❌ Something went wrong while fetching your question.");
+        }
+    }
+
     if (!interaction.isButton()) return;
 
     if (interaction.customId.startsWith('toggle_')) {
       const feature = interaction.customId.replace('toggle_', '');
-      const adminChannelId = process.env.ADMIN_CHANNEL_ID || '1488553134463914147';
+      const adminChannelId = process.env.ADMIN_CHANNEL_ID;
       
       if (interaction.channel.id !== adminChannelId) {
           return interaction.reply({ content: "You do not have permission to use admin toggles.", ephemeral: true });
@@ -878,6 +935,40 @@ client.on('interactionCreate', async (interaction) => {
               }
               return interaction.editReply({ content: "Roadmap unavailable." });
           }
+      }
+
+      // AI Question Option Buttons (Solo Battle answers)
+      if (interaction.customId.startsWith('aiq_opt_')) {
+          const parts = interaction.customId.split('_');
+          const questionId = parts[2];
+          const optionIndex = parseInt(parts[3]);
+          await interaction.deferUpdate();
+
+          const q = await AIQuestion.findById(questionId);
+          if (!q) return interaction.followUp({ content: 'Question not found.', ephemeral: true });
+
+          const isCorrect = q.options[optionIndex] === q.correctAnswer;
+          let user = await User.findOne({ discordId: interaction.user.id });
+          if (!user) user = new User({ discordId: interaction.user.id, username: interaction.user.username });
+
+          // Track progress - use .toString() for reliable ObjectId comparison
+          if (!user.seenAIQuestions.some(id => id.toString() === q._id.toString())) {
+              user.seenAIQuestions.push(q._id);
+          }
+
+          const embed = EmbedBuilder.from(interaction.message.embeds[0]);
+          if (isCorrect) {
+              const soloXP = parseInt(process.env.SOLO_XP_REWARD) || 5;
+              user.mastery.General += soloXP;
+              embed.setColor(0x00FF00)
+                   .setDescription(`✅ **Correct!**\n\n${q.explanation || ''}\n\n*+${soloXP} General XP added to your stats!*`);
+          } else {
+              embed.setColor(0xFF0000)
+                   .setDescription(`❌ **Incorrect.**\n\n**The correct answer was:** ${q.correctAnswer}\n\n${q.explanation || ''}`);
+          }
+
+          await user.save();
+          return interaction.editReply({ embeds: [embed], components: [] });
       }
 
     } catch (err) {

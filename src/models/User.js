@@ -12,7 +12,8 @@ const userSchema = new mongoose.Schema({
         General: { type: Number, default: 0 }
     },
     battleWins: { type: Number, default: 0 },
-    claimedQuestions: { type: [String], default: [] } // Tracks message IDs to prevent double XP
+    claimedQuestions: { type: [String], default: [] }, // Tracks message IDs to prevent double XP
+    seenAIQuestions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'AIQuestion' }]
 });
 
 module.exports = mongoose.model('User', userSchema);
